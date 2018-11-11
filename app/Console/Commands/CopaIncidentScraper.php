@@ -44,10 +44,20 @@ class CopaIncidentScraper extends Command
      */
     public function handle(Client $guzzleClient)
     {
-        $url = 'https://www.chicagocopa.org/wp-content/themes/copa/DynamicSearch.php?ss=&alt-ipracats=&notificationStartDate=&alt-notificationStartDate=&notificationEndDate=&alt-notificationEndDate=&incidentStartDate=&alt-incidentStartDate=&incidentEndDate=&alt-incidentEndDate=&district=';
-
         $this->info('Requesting the cases...');
-        $response = $guzzleClient->get($url);
+        $response = $guzzleClient->get('https://www.chicagocopa.org/wp-content/themes/copa/DynamicSearch.php', ['query' => [
+            'ss' => '',
+            'alt-ipracats' => '',
+            'notificationStartDate' => '',
+            'alt-notificationStartDate' => '',
+            'notificationEndDate' => '',
+            'alt-notificationEndDate' => '',
+            'incidentStartDate' => '',
+            'alt-incidentStartDate' => '',
+            'incidentEndDate' => '',
+            'alt-incidentEndDate' => '',
+            'district' => ''
+        ]]);
         $response = json_decode($response->getBody()->getContents());
         $html = $response->caseSearch->items;
         $crawler = new Crawler($html);
