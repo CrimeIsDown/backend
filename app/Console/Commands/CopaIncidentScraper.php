@@ -2,8 +2,13 @@
 
 namespace App\Console\Commands;
 
+use Carbon\Carbon;
+use GitWrapper\GitException;
+use GitWrapper\GitWorkingCopy;
+use GitWrapper\GitWrapper;
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\EncloseField;
 use League\Csv\Writer;
@@ -23,7 +28,7 @@ class CopaIncidentScraper extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Saves a CSV of all cases stored on the COPA (formerly IPRA) Chicago website and commits the changes to a repo';
 
     /**
      * Create a new command instance.
@@ -38,14 +43,35 @@ class CopaIncidentScraper extends Command
     /**
      * Execute the console command.
      *
+     * @param GitWrapper $gitWrapper
      * @param Client $guzzleClient
      * @return void
      * @throws \League\Csv\CannotInsertRecord
      */
-    public function handle(Client $guzzleClient)
+    public function handle(GitWrapper $gitWrapper, Client $guzzleClient)
     {
-        $this->info('Requesting the cases...');
-        $response = $guzzleClient->get('https://www.chicagocopa.org/wp-content/themes/copa/DynamicSearch.php', ['query' => [
+        $git = $this->getRepoWorkingCopy($gitWrapper);
+
+        $this->comment('Requesting the cases...');
+
+        $html = $this->getHtml($guzzleClient);
+
+        $this->comment('Parsing HTML and scraping the data...');
+
+        $rows = $this->parseHtml($html);
+
+        $this->comment('Formatting and writing the cases to a CSV...');
+
+        $this->saveCsv($rows);
+
+        $this->info('New cases CSV written successfully.');
+
+        $this->commitChanges($git);
+    }
+
+    private function getHtml(Client $client)
+    {
+        $response = $client->get('https://www.chicagocopa.org/wp-content/themes/copa/DynamicSearch.php', ['query' => [
             'ss' => '',
             'alt-ipracats' => '',
             'notificationStartDate' => '',
@@ -59,12 +85,14 @@ class CopaIncidentScraper extends Command
             'district' => ''
         ]]);
         $response = json_decode($response->getBody()->getContents());
-        $html = $response->caseSearch->items;
+        return $response->caseSearch->items;
+    }
+
+    private function parseHtml(string $html)
+    {
         $crawler = new Crawler($html);
 
-        $this->info('Parsing HTML and scraping the data...');
-
-        // pull out column headers
+        // Pull out column headers
         $headers = $crawler->filter('table thead th')
             ->extract(['_text']);
         array_unshift($headers, 'URL'); // add URL to the beginning of the array
@@ -99,18 +127,49 @@ class CopaIncidentScraper extends Command
             $rows->push($row);
         });
 
-        $this->info('Formatting and writing the cases to a CSV...');
+        return $rows->sortBy($headers[1]); // Sort by log number ascending
+    }
 
-        $rows = $rows->sortBy($headers[1]);
-
+    /**
+     * @param $rows
+     * @throws \League\Csv\CannotInsertRecord
+     */
+    private function saveCsv($rows)
+    {
         $csv = Writer::createFromString('');
         EncloseField::addTo($csv, "\t\x1f"); // Force quoting all cells
 
-        $csv->insertOne($headers);
+        $csv->insertOne(array_keys($rows->first()));
         $csv->insertAll($rows->values()->toArray());
 
-        Storage::put('cases.csv', $csv->getContent());
+        Storage::put(str_replace(storage_path('app').'/', '', Config::get('custom.copa.clone_path').'cases.csv'), $csv->getContent());
+    }
 
-        $this->info('All cases written successfully');
+    private function getRepoWorkingCopy(GitWrapper $gitWrapper)
+    {
+        try {
+            return $gitWrapper->cloneRepository(Config::get('custom.copa.repository'),
+                Config::get('custom.copa.clone_path'));
+        } catch (GitException $e) {
+            // We must already have it cloned
+            return $gitWrapper->workingCopy(Config::get('custom.copa.clone_path'));
+        }
+    }
+
+    private function commitChanges(GitWorkingCopy $git)
+    {
+        $git->config('user.name', Config::get('custom.git.user.name'));
+        $git->config('user.email', Config::get('custom.git.user.email'));
+        $git->add('cases.csv');
+        try {
+            $this->comment($git->commit('Incidents as of ' . Carbon::now()->toFormattedDateString()));
+        } catch (GitException $e) {
+            if (str_contains($e->getMessage(), 'nothing to commit, working tree clean')) {
+                $this->warn('No cases have changed since the last commit.');
+                return;
+            }
+        }
+        $git->push();
+        $this->info('Updated repository with changes.');
     }
 }
