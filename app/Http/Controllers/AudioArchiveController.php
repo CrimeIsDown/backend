@@ -18,7 +18,6 @@ class AudioArchiveController extends Controller
      */
     public function download(Request $request)
     {
-        return response('OK');
         $tiers = [
             'https://www.patreon.com/posts/login-to-get-8672312' => [
                 'hash' => hash('sha256', '$1/mo patron'),
@@ -87,7 +86,7 @@ class AudioArchiveController extends Controller
             shell_exec('/usr/bin/xz -d ' .storage_path("app/recordings/$filename.xz"));
             if (Storage::exists('recordings/'.$filename)) {
                 Storage::disk('recordings-temp')->put($filename, Storage::get('recordings/'.$filename));
-                Storage::delete('recordings/'.$filename);
+                Storage::delete(["recordings/$filename", "recordings/$filename.xz"]);
             } else {
                 return response('Error: Could not decompress recording. Contact eric@crimeisdown.com for assistance.', 500);
             }
