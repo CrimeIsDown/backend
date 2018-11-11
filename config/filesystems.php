@@ -64,6 +64,20 @@ return [
             'url' => env('AWS_URL'),
         ],
 
+        'recordings' => [
+            'driver'          => 'gcs',
+            'project_id'      => env('GOOGLE_CLOUD_PROJECT_ID', 'crimeisdown'),
+            'key_file'        => env('GOOGLE_CLOUD_KEY_FILE', null), // optional: /path/to/service-account.json
+            'bucket'          => env('GOOGLE_CLOUD_STORAGE_BUCKET', 'crimeisdown-audio'),
+        ],
+
+        'recordings-temp' => [
+            'driver'          => 'gcs',
+            'project_id'      => env('GOOGLE_CLOUD_PROJECT_ID', 'crimeisdown'),
+            'key_file'        => env('GOOGLE_CLOUD_KEY_FILE', null), // optional: /path/to/service-account.json
+            'bucket'          => 'crimeisdown-audio-temp',
+        ],
+
     ],
 
 ];

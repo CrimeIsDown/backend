@@ -15,6 +15,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/recordings/download-audio.php', 'AudioArchiveController@download')->middleware(['throttle:50,1440']);
+
 Route::prefix('directives')->group(function () {
     Route::get('diff/{commit}/directives/data/{uuid}.html', 'DirectivesController@show');
     Route::get('diff_list.json', function () {

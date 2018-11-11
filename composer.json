@@ -9,8 +9,10 @@
         "caxy/php-htmldiff": "^0.1.7",
         "cpliakas/git-wrapper": "^2.1",
         "fideloper/proxy": "^4.0",
+        "guzzlehttp/guzzle": "~6.0",
         "laravel/framework": "5.7.*",
-        "laravel/tinker": "^1.0"
+        "laravel/tinker": "^1.0",
+        "superbalist/laravel-google-cloud-storage": "^2.0"
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^1.0",
