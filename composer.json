@@ -12,7 +12,9 @@
         "guzzlehttp/guzzle": "~6.0",
         "laravel/framework": "5.7.*",
         "laravel/tinker": "^1.0",
-        "superbalist/laravel-google-cloud-storage": "^2.0"
+        "league/csv": "^9.1",
+        "superbalist/laravel-google-cloud-storage": "^2.0",
+        "symfony/dom-crawler": "^4.1"
     },
     "require-dev": {
         "beyondcode/laravel-dump-server": "^1.0",
