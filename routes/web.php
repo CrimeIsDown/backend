@@ -14,3 +14,10 @@
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::prefix('directives')->group(function () {
+    Route::get('diff/{commit}/directives/data/{uuid}.html', 'DirectivesController@show');
+    Route::get('diff_list.json', function () {
+        return response(Storage::get(Config::get('custom.directives.public_path').'/diff_list.json'), 200, ['Content-Type' => 'application/json']);
+    });
+});
