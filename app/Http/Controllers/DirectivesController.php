@@ -15,7 +15,8 @@ class DirectivesController extends Controller
      */
     public function index()
     {
-        //
+        $directives = collect(json_decode(Storage::get(Config::get('custom.directives.public_path').'/diff_list.json')));
+        return view('directives.index', ['directives' => $directives]);
     }
 
     /**
@@ -32,7 +33,7 @@ class DirectivesController extends Controller
             // If we don't have a diff of the file, pull the relevant version from the git repo
             // @TODO: Use a git command to fetch the file instead of using master
 
-            $htmlPath = "app/cpd-directives/directives/data/$uuid.html";
+            $htmlPath = "cpd-directives/directives/data/$uuid.html";
         }
 
         // Check if we have the file
@@ -43,12 +44,20 @@ class DirectivesController extends Controller
             return response('', 404);
         }
 
-        $diffs = collect(json_decode(Storage::get(Config::get('custom.directives.public_path').'/diff_list.json')));
-        $metadata = $diffs->where('path', "$commit/directives/data/$uuid.html")->first();
-        $title = $metadata->title;
+        if (preg_match('/<title>(.*?)<\/title>/', $html, $matches)) {
+            $title = $matches[1];
+        } else {
+            $diffs = collect(json_decode(Storage::get(Config::get('custom.directives.public_path') . '/diff_list.json')));
+            $metadata = $diffs->where('path', "$commit/directives/data/$uuid.html")->first();
+            if ($metadata) {
+                $title = $metadata->title;
+            } else {
+                $title = '';
+            }
+        }
 
         // If one directive links to another, go to the version of it we had at the time of scraping
-        $html = preg_replace('/<a href="([a-z0-9\-]{45})\.html" target="new">/i', '<a href="https://directives.crimeisdown.com/diff/'.$commit.'/directives/data/$1.html" target="new">', $html);
+        $html = preg_replace('/<a href="([a-z0-9\-]{45})\.html" target="new">/i', '<a href="'.str_replace('uuid', '$1', route('directives.diff', ['commit' => $commit, 'uuid' => 'uuid'])).'" target="new">', $html);
 
         return view('directives.view', ['html' => $html, 'title' => $title, 'uuid' => $uuid]);
     }

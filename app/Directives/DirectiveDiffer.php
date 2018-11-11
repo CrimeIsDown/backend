@@ -7,7 +7,6 @@ use Caxy\HtmlDiff\HtmlDiff;
 use GitWrapper\GitException;
 use GitWrapper\GitWorkingCopy;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class DirectiveDiffer
@@ -36,15 +35,15 @@ class DirectiveDiffer
 
         $new = $this->getNewFile($newFile);
         if (!$new) {
-            return $new;
+            return null;
         }
         $difftext = $new;
-        $old = $this->getOldFile($new, $oldFile);
+        $old = $this->getOldFile($oldFile);
         if ($old) {
             $difftext = $this->generateDiff($old, $new);
         }
         Storage::put(Config::get('custom.directives.public_path')."/diff/$this->commit/$newFile", $difftext);
-        return $this->getMetadata($new, $this->commit.'/'.$file);
+        return $this->getMetadata($new, $this->commit.'/'.$newFile);
     }
 
     private function getNewFile(string $file): ?string
@@ -78,8 +77,7 @@ class DirectiveDiffer
 
         preg_match('/<title>(.*?)<\/title>/', $html, $matches);
         if (\count($matches)) {
-            $metadata['title'] = $matches[1];
-            $metadata['link'] = '<a href="https://directives.crimeisdown.com/diff/'.$metadata['path'].'">'.$metadata['title'].'</a>';
+            $metadata['title'] = trim($matches[1]);
         }
 
         preg_match('/<td class="td1">Issue Date:<\/td><td class="td2">(.*?)<\/td>/', $html, $matches);

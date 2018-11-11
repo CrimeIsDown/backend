@@ -77,7 +77,6 @@ class DiffDirectives extends Command
         foreach ($changedFiles as $i => $file) {
             $this->info('Calculating diff '.($i+1).' of '.\count($changedFiles));
             $diffPath = Config::get('custom.directives.public_path')."/diff/{$file['commit']}/{$file['path']}";
-            $this->info($diffPath);
             if (Storage::exists($diffPath)) {
                 if (!$this->confirm("The diff at $diffPath already exists, should we regenerate it?")) {
                     // Skip to the next file
@@ -86,8 +85,12 @@ class DiffDirectives extends Command
             }
             $result = $this->generateDiff($file['commit'], $file['path']);
             if ($result) {
-                $finishedDiffs->push($result);
-                Storage::put($diffListPath, json_encode($finishedDiffs->sortByDesc('issue_timestamp')->values()->toArray(), JSON_PRETTY_PRINT));
+                $finishedDiffs = $finishedDiffs
+                    ->push($result)
+                    ->unique()
+                    ->sortByDesc('issue_timestamp')
+                    ->values();
+                Storage::put($diffListPath, json_encode($finishedDiffs->toArray(), JSON_PRETTY_PRINT));
             }
         }
 
@@ -102,11 +105,12 @@ class DiffDirectives extends Command
         $commitsToCheck = [];
 
         foreach ($commits as $i => $commit) {
+            $commitPath = Config::get('custom.directives.public_path')."/diff/$commit/directives/data";
             if (
                 // Check for changed files if we don't have a directory made for this commit
-                !Storage::exists(Config::get('custom.directives.public_path')."/diff/$commit") ||
+                !Storage::exists($commitPath) ||
                 // Or if we don't have any files in the directory, which may indicate the process failed
-                \count(Storage::files(Config::get('custom.directives.public_path')."/diff/$commit")) === 0
+                \count(Storage::files($commitPath)) === 0
             ) {
                 $commitsToCheck[] = $commit;
             }
