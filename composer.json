@@ -6,6 +6,8 @@
     "type": "project",
     "require": {
         "php": "^7.1.3",
+        "caxy/php-htmldiff": "^0.1.7",
+        "cpliakas/git-wrapper": "^2.1",
         "fideloper/proxy": "^4.0",
         "laravel/framework": "5.7.*",
         "laravel/tinker": "^1.0"
