@@ -24,8 +24,12 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')
-        //          ->hourly();
+        $schedule->command('directives:scrape', ['--generate-diff' => true])
+            ->dailyAt('17:00')
+            ->timezone('America/Chicago');
+        $schedule->command('copa:scrape')
+            ->dailyAt('17:00')
+            ->timezone('America/Chicago');
     }
 
     /**

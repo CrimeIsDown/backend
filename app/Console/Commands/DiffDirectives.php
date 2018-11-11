@@ -24,7 +24,7 @@ class DiffDirectives extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Generates HTML diffs of directives';
 
     /**
      * @var GitWorkingCopy

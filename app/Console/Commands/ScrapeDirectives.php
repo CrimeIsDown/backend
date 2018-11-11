@@ -7,6 +7,7 @@ use GitWrapper\GitException;
 use GitWrapper\GitWorkingCopy;
 use GitWrapper\GitWrapper;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 
@@ -17,14 +18,14 @@ class ScrapeDirectives extends Command
      *
      * @var string
      */
-    protected $signature = 'directives:scrape';
+    protected $signature = 'directives:scrape {--generate-diff}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Scrapes the CPD directives website and commits the current state to a repo';
 
     /**
      * Create a new command instance.
@@ -40,7 +41,7 @@ class ScrapeDirectives extends Command
      * Execute the console command.
      *
      * @param GitWrapper $gitWrapper
-     * @return mixed
+     * @return void
      */
     public function handle(GitWrapper $gitWrapper)
     {
@@ -53,6 +54,9 @@ class ScrapeDirectives extends Command
         }
         $this->scrapeDirectives();
         $this->commitChanges($git);
+        if ($this->option('generate-diff')) {
+            Artisan::call('directives:diff');
+        }
     }
 
     private function scrapeDirectives()
