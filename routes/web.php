@@ -17,6 +17,9 @@ Route::get('/', function () {
 
 Route::get('recordings/download-audio.php', 'AudioArchiveController@download')->middleware(['throttle:50,1440']);
 
+Route::get('recordings/generate-video.php', 'TranscodingController@generateVideoForm');
+Route::post('recordings/generate-video.php', 'TranscodingController@generateVideo');
+
 Route::prefix('directives')->group(function () {
     Route::get('', 'DirectivesController@index');
     Route::get('diff/{commit}/directives/data/{uuid}.html', 'DirectivesController@show')->name('directives.diff');
