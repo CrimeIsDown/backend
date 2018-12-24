@@ -3,6 +3,8 @@ version: '3'
 services:
   web:
     image: nginx:1-alpine
+    ports:
+      - "80"
     networks:
       ingress:
         aliases:
