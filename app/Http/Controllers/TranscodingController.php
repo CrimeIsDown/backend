@@ -32,8 +32,8 @@ class TranscodingController extends Controller
         $videoPath = 'recordings/'.str_random(40).'.mp4';
 
         $hwaccelArgs = file_exists('/dev/dri/renderD128') ? '-init_hw_device vaapi=intel:/dev/dri/renderD128 -hwaccel vaapi -hwaccel_device intel -filter_hw_device intel' : '';
-        $ffmpegPath = shell_exec('which ffmpeg');
-        $ffprobePath = shell_exec('which ffprobe');
+        $ffmpegPath = trim(shell_exec('which ffmpeg'));
+        $ffprobePath = trim(shell_exec('which ffprobe'));
 
         $waveformPath = 'recordings/'.str_random(40).'.png';
 
