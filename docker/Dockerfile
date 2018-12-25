@@ -5,7 +5,7 @@ RUN apk --update upgrade \
  && rm -rf /var/cache/apk/*
 
 # Install runtime dependencies
-RUN apk add --no-cache bash ffmpeg xz fcgi libzip \
+RUN apk add --no-cache bash xz fcgi libzip \
  && update-ca-certificates
 
 # Install extension building dependencies
@@ -35,3 +35,10 @@ RUN apk del .build-deps
 
 # Configure PHP
 COPY docker/php.ini /usr/local/etc/php/
+
+ARG FFMPEG_URL=https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
+
+ADD ${FFMPEG_URL} /tmp/ffmpeg.tar.xz
+RUN cd /tmp \
+ && tar xJf ffmpeg.tar.xz \
+ && cp /tmp/ffmpeg*/ffmpeg /tmp/ffmpeg*/ffprobe /usr/bin/
