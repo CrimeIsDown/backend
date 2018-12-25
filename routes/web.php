@@ -12,7 +12,7 @@
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('https://crimeisdown.com/');
 });
 
 Route::get('recordings/download-audio.php', 'AudioArchiveController@download')->middleware(['throttle:50,1440']);

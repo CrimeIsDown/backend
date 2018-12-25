@@ -14,7 +14,7 @@
 <body class="text-center">
 <form class="form-signin" method="post" enctype="multipart/form-data" style="max-width: 30em; padding: 1em">
     @csrf
-    <img class="mb-6 py-3 img-fluid" src="{{ asset('img/video.png') }}" alt="What a video looks like">
+    <img class="mb-6 py-3 img-fluid" src="/img/video.png" alt="What a video looks like">
     <h1 class="h3 mb-3 font-weight-normal">Generate video</h1>
     @if ($errors->any())
     <div class="form-group">
