@@ -15,7 +15,8 @@ class DirectivesController extends Controller
      */
     public function index()
     {
-        $directives = collect(json_decode(Storage::get(Config::get('custom.directives.public_path').'/diff_list.json')));
+        $directives = collect(json_decode(Storage::get(Config::get('custom.directives.public_path').'/diff_list.json')))
+            ->sortByDesc('issue_timestamp');
         return view('directives.index', ['directives' => $directives]);
     }
 

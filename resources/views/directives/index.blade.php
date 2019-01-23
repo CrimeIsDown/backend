@@ -54,7 +54,7 @@
                 @foreach($directives as $directive)
                     <tr>
                         <td class="directive-title" >
-                            <a href="{{ url('directives/diff').'/'.$directive->path }}">{!! $directive->title !!}</a>
+                            <a href="{{ '/directives/diff/'.$directive->path }}">{!! $directive->title !!}</a>
                         </td>
                         <td class="directive-date" >{{ $directive->issue_date }}</td>
                         <td class="directive-date" >{{ $directive->effective_date }}</td>
