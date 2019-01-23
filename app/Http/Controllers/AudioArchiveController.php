@@ -72,7 +72,7 @@ class AudioArchiveController extends Controller
 
         $file_prefix = $request->get('feed').'_'.date('Ymd_His', strtotime($request->get('datetime')));
 
-        preg_match('/(.*?)_([0-9]{4})([0-9]{2})([0-9]{2})_([0-9]{2})([0-9]{2})([0-9]{2})\.aac/', $file_prefix, $matches);
+        preg_match('/(.*?)_([0-9]{4})([0-9]{2})([0-9]{2})_([0-9]{2})([0-9]{2})([0-9]{2})/', $file_prefix, $matches);
         $path = "$matches[2]/$matches[3]/$matches[4]/$matches[5]";
         $filename = "$matches[1]_$matches[2]$matches[3]$matches[4]_$matches[5]0000";
         $file = null; // the file we want to return
