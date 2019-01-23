@@ -87,6 +87,7 @@ class AudioArchiveController extends Controller
 
         if (!$file) {
             foreach (Storage::disk('recordings')->files($path) as $audioFile) {
+                $audioFile = str_replace("$path/", '', $audioFile);
                 if (starts_with($audioFile, $filename)) {
                     $file = $this->convertFile($path, $audioFile, $filename);
                     break;
