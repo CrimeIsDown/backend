@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use Jenssegers\Agent\Facades\Agent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -123,7 +124,8 @@ class AudioArchiveController extends Controller
                     500);
             }
         } else if (ends_with($filename, '.ogg')) {
-            $opusSupported = false;
+            // See https://caniuse.com/#feat=opus
+            $opusSupported = !(Agent::is('Safari') || Agent::is('iPhone'));
             if ($opusSupported) {
                 $extension = '.ogg';
                 Storage::disk('recordings-temp')->put($filename, Storage::disk('recordings')->get("$path/$filename"));
