@@ -125,7 +125,9 @@ class AudioArchiveController extends Controller
             }
         } else if (ends_with($filename, '.ogg')) {
             // See https://caniuse.com/#feat=opus
-            $opusSupported = !(Agent::is('Safari') || Agent::is('iPhone'));
+//            $opusSupported = !(Agent::is('Safari') || Agent::is('iPhone'));
+            $opusSupported = true;
+
             if ($opusSupported) {
                 $extension = '.ogg';
                 Storage::disk('recordings-temp')->put($filename, Storage::disk('recordings')->get("$path/$filename"));
