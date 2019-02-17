@@ -19,6 +19,9 @@ class AudioArchiveController extends Controller
      */
     public function download(Request $request)
     {
+        // See https://caniuse.com/#feat=opus
+        $opusSupported = !Agent::is('iPhone');
+
         $tiers = [
             'https://www.patreon.com/posts/login-to-get-8672312' => [
                 'hash' => hash('sha256', '$1/mo patron'),
@@ -81,8 +84,10 @@ class AudioArchiveController extends Controller
         // check if it exists in the temp bucket
         foreach (Storage::disk('recordings-temp')->files() as $tempFile) {
             if (starts_with($tempFile, $filename)) {
-                $file = $tempFile;
-                break;
+                if (!(ends_with($tempFile, '.ogg') && !$opusSupported)) {
+                    $file = $tempFile;
+                    break;
+                }
             }
         }
 
@@ -90,7 +95,7 @@ class AudioArchiveController extends Controller
             foreach (Storage::disk('recordings')->files($path) as $audioFile) {
                 $audioFile = str_replace("$path/", '', $audioFile);
                 if (starts_with($audioFile, $filename)) {
-                    $file = $this->convertFile($path, $audioFile, $filename);
+                    $file = $this->convertFile($path, $audioFile, $filename, $opusSupported);
                     break;
                 }
             }
@@ -109,7 +114,7 @@ class AudioArchiveController extends Controller
         return response()->redirectTo($url);
     }
 
-    private function convertFile($path, $filename, $file_prefix)
+    private function convertFile($path, $filename, $file_prefix, $opusSupported)
     {
         $extension = '';
         if (ends_with($filename, '.aac.xz')) {
@@ -124,15 +129,11 @@ class AudioArchiveController extends Controller
                     500);
             }
         } else if (ends_with($filename, '.ogg')) {
-            // See https://caniuse.com/#feat=opus
-//            $opusSupported = !(Agent::is('Safari') || Agent::is('iPhone'));
-            $opusSupported = true;
-
             if ($opusSupported) {
                 $extension = '.ogg';
                 Storage::disk('recordings-temp')->put($filename, Storage::disk('recordings')->get("$path/$filename"));
             } else {
-                $extension = '.mp3';
+                $extension = '.aac';
                 Storage::put("recordings/$filename", Storage::disk('recordings')->get("$path/$filename"));
                 $ffmpegPath = trim(shell_exec('which ffmpeg'));
                 shell_exec($ffmpegPath . ' -i ' . storage_path("app/recordings/$filename") . ' ' . storage_path("app/recordings/$file_prefix$extension"));
