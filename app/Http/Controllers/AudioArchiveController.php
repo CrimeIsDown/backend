@@ -20,7 +20,7 @@ class AudioArchiveController extends Controller
     public function download(Request $request)
     {
         // See https://caniuse.com/#feat=opus
-        $opusSupported = !Agent::is('iPhone');
+        $opusSupported = !($request->input('format') === 'aac' || Agent::is('iPhone'));
 
         $tiers = [
             'https://www.patreon.com/posts/login-to-get-8672312' => [
