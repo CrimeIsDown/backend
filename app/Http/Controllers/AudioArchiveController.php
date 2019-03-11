@@ -95,7 +95,7 @@ class AudioArchiveController extends Controller
             foreach (Storage::disk('recordings')->files($path) as $audioFile) {
                 $audioFile = str_replace("$path/", '', $audioFile);
                 if (starts_with($audioFile, $filename)) {
-                    $file = $this->convertFile($path, $audioFile, $filename, $opusSupported);
+                    $file = $this->convertFile($path, $audioFile, $filename, $opusSupported, $request->input('format'));
                     break;
                 }
             }
@@ -114,7 +114,7 @@ class AudioArchiveController extends Controller
         return response()->redirectTo($url);
     }
 
-    private function convertFile($path, $filename, $file_prefix, $opusSupported)
+    private function convertFile($path, $filename, $file_prefix, $opusSupported, $format)
     {
         $extension = '';
         if (ends_with($filename, '.aac.xz')) {
@@ -129,7 +129,7 @@ class AudioArchiveController extends Controller
                     500);
             }
         } else if (ends_with($filename, '.ogg')) {
-            if ($opusSupported || $request->input('format') === 'ogg') {
+            if ($opusSupported || $format === 'ogg') {
                 $extension = '.ogg';
                 Storage::disk('recordings-temp')->put($filename, Storage::disk('recordings')->get("$path/$filename"));
             } else {
