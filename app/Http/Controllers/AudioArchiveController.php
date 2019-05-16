@@ -136,7 +136,7 @@ class AudioArchiveController extends Controller
                 $extension = '.aac';
                 Storage::put("recordings/$filename", Storage::disk('recordings')->get("$path/$filename"));
                 $ffmpegPath = trim(shell_exec('which ffmpeg'));
-                shell_exec($ffmpegPath . ' -i ' . storage_path("app/recordings/$filename") . ' -c:a aac -b:a 32k -ac 1 -ar 22050 ' . storage_path("app/recordings/$file_prefix$extension"));
+                shell_exec($ffmpegPath . ' -y -i ' . storage_path("app/recordings/$filename") . ' -c:a aac -b:a 32k -ac 1 -ar 22050 ' . storage_path("app/recordings/$file_prefix$extension"));
                 if (Storage::exists("recordings/$file_prefix$extension")) {
                     Storage::disk('recordings-temp')->put("$file_prefix$extension", Storage::get("recordings/$file_prefix$extension"));
                     Storage::delete(["recordings/$filename", "recordings/$file_prefix$extension"]);
