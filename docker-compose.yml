@@ -6,10 +6,6 @@ services:
     restart: always
     ports:
       - "80"
-    networks:
-      ingress:
-        aliases:
-         - backend-web
     volumes:
      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
      - .:/var/www/html
@@ -18,14 +14,16 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    networks:
-      ingress:
-        aliases:
-         - backend-php
     volumes:
      - .:/var/www/html
+    depends_on:
+     - redis
+  redis:
+    image: redis:5-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - cache-data:/data
 
-networks:
-  ingress:
-    external:
-      name: ingress_default
+volumes:
+  cache-data:
