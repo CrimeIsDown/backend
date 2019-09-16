@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TranscodingController extends Controller
@@ -29,13 +30,13 @@ class TranscodingController extends Controller
         $audioFile->storeAs('recordings', $audioPath);
         $audioPath = 'recordings/'.$audioPath;
 
-        $videoPath = 'recordings/'.str_random(40).'.mp4';
+        $videoPath = 'recordings/'.Str::random(40).'.mp4';
 
         $hwaccelArgs = file_exists('/dev/dri/renderD128') ? '-init_hw_device vaapi=intel:/dev/dri/renderD128 -hwaccel vaapi -hwaccel_device intel -filter_hw_device intel' : '';
         $ffmpegPath = trim(shell_exec('which ffmpeg'));
         $ffprobePath = trim(shell_exec('which ffprobe'));
 
-        $waveformPath = 'recordings/'.str_random(40).'.png';
+        $waveformPath = 'recordings/'.Str::random(40).'.png';
 
         $waveformCommand = $ffmpegPath.' '.$hwaccelArgs.' -y -i '.escapeshellarg(storage_path('app').DIRECTORY_SEPARATOR.$audioPath).' -filter_complex "showwavespic=s=1280x300:split_channels=1:colors=00ff00|00ff00" -frames:v 1 '.escapeshellarg(storage_path('app').DIRECTORY_SEPARATOR.$waveformPath).' -v error';
         $result = exec($waveformCommand);
@@ -44,7 +45,7 @@ class TranscodingController extends Controller
         $result = exec($durationCommand);
         $duration = round((float) $result, 2);
 
-        $captionPath = 'recordings/'.str_random(40).'.txt';
+        $captionPath = 'recordings/'.Str::random(40).'.txt';
         Storage::put($captionPath, $title);
 
         $command = $ffmpegPath.' '.$hwaccelArgs.' -y -i '.escapeshellarg(storage_path('app').DIRECTORY_SEPARATOR.$audioPath).' -loop 1 -i '.storage_path('videoassets/audio_bg_transparent.png').' -i '.escapeshellarg(storage_path('app').DIRECTORY_SEPARATOR.$waveformPath).' -i '.storage_path('videoassets/audio_progress.png').' -filter_complex "[1][2]overlay=x=0:y=H-h:eval=init[over];[over]drawtext=fontfile='.storage_path('videoassets/HelveticaNeue-Light.otf').':fontsize=72:textfile='.escapeshellarg(storage_path('app').DIRECTORY_SEPARATOR.$captionPath).':x=(w-text_w)/2:y=(h-325-text_h):fontcolor=white:shadowy=2:shadowx=2:shadowcolor=black[text];[text][3] overlay=x=\'-w+W*t/'.$duration.'\':y=H-h:format=yuv420" -shortest -c:a aac -b:a 128k -c:v libx264 -pix_fmt yuv420p -preset ultrafast '.escapeshellarg(storage_path('app').DIRECTORY_SEPARATOR.$videoPath);

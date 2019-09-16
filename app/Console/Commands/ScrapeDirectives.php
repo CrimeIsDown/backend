@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ScrapeDirectives extends Command
 {
@@ -78,7 +79,7 @@ class ScrapeDirectives extends Command
         try {
             $git->commit('Directives as of ' . Carbon::now()->toFormattedDateString());
         } catch (GitException $e) {
-            if (str_contains($e->getMessage(), 'nothing to commit, working tree clean')) {
+            if (Str::contains($e->getMessage(), 'nothing to commit, working tree clean')) {
                 $this->warn('No directives have changed since the last commit.');
                 return;
             }

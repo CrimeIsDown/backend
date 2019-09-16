@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Jenssegers\Agent\Facades\Agent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AudioArchiveController extends Controller
@@ -83,8 +84,8 @@ class AudioArchiveController extends Controller
 
         // check if it exists in the temp bucket
         foreach (Storage::disk('recordings-temp')->files() as $tempFile) {
-            if (starts_with($tempFile, $filename)) {
-                if (!(ends_with($tempFile, '.ogg') && !$opusSupported)) {
+            if (Str::startsWith($tempFile, $filename)) {
+                if (!(Str::endsWith($tempFile, '.ogg') && !$opusSupported)) {
                     $file = $tempFile;
                     break;
                 }
@@ -94,14 +95,14 @@ class AudioArchiveController extends Controller
         if (!$file) {
             foreach (Storage::disk('recordings')->files($path) as $audioFile) {
                 $audioFile = str_replace("$path/", '', $audioFile);
-                if (starts_with($audioFile, $filename)) {
+                if (Str::startsWith($audioFile, $filename)) {
                     $file = $this->convertFile($path, $audioFile, $filename, $opusSupported, $request->input('format'));
                     break;
                 }
             }
             if (!$file) {
                 // We searched both buckets and can't find it
-                return response('Error: No recording found at that time. Please try a different hour.', 404);
+                return response('Error: No recording found at that time. If this is a very recent recording, it may not have been uploaded yet (it can take up to an hour to upload). Otherwise, please try a different hour.', 404);
             }
         }
 
@@ -117,7 +118,7 @@ class AudioArchiveController extends Controller
     private function convertFile($path, $filename, $file_prefix, $opusSupported, $format)
     {
         $extension = '';
-        if (ends_with($filename, '.aac.xz')) {
+        if (Str::endsWith($filename, '.aac.xz')) {
             $extension = '.aac';
             Storage::put("recordings/$filename", Storage::disk('recordings')->get("$path/$filename"));
             shell_exec('/usr/bin/xz -d ' . storage_path("app/recordings/$filename"));
@@ -128,7 +129,7 @@ class AudioArchiveController extends Controller
                 return response('Error: Could not decompress recording. Contact eric@crimeisdown.com for assistance.',
                     500);
             }
-        } else if (ends_with($filename, '.ogg')) {
+        } else if (Str::endsWith($filename, '.ogg')) {
             if ($opusSupported || $format === 'ogg') {
                 $extension = '.ogg';
                 Storage::disk('recordings-temp')->put($filename, Storage::disk('recordings')->get("$path/$filename"));

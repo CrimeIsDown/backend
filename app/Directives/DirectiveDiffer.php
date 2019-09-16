@@ -8,6 +8,7 @@ use GitWrapper\GitException;
 use GitWrapper\GitWorkingCopy;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DirectiveDiffer
 {
@@ -22,7 +23,7 @@ class DirectiveDiffer
         $this->commit = $commit;
         $this->git = $git;
 
-        if (str_contains($file, '=>')) {
+        if (Str::contains($file, '=>')) {
             // This is a rename
             $matches = [];
             preg_match('/(.*?)\{([\w-]{45}\.html) => ([\w-]{45}\.html)\}/', $file, $matches);

@@ -10,6 +10,7 @@ use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use League\Csv\EncloseField;
 use League\Csv\Writer;
 use Symfony\Component\DomCrawler\Crawler;
@@ -164,7 +165,7 @@ class CopaIncidentScraper extends Command
         try {
             $this->comment($git->commit('Incidents as of ' . Carbon::now()->toFormattedDateString()));
         } catch (GitException $e) {
-            if (str_contains($e->getMessage(), 'nothing to commit, working tree clean')) {
+            if (Str::contains($e->getMessage(), 'nothing to commit, working tree clean')) {
                 $this->warn('No cases have changed since the last commit.');
                 return;
             }
