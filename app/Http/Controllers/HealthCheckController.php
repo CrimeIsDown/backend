@@ -43,11 +43,11 @@ class HealthCheckController extends Controller
     /**
      * Check if there have been recent OpenMHz calls uploaded
      *
+     * @param Request $request
      * @param string $systemName  Short system name (in OpenMHz URL)
-     * @param float  $maxHiatus   Maximum tolerable time since the last upload, in minutes
      * @return \Illuminate\Http\Response
      */
-    public function checkOpenmhz(string $systemName, float $maxHiatus = 10)
+    public function checkOpenmhz(Request $request, string $systemName)
     {
         $client = new Client([
             'base_uri' => 'https://api.openmhz.com/',
@@ -58,6 +58,8 @@ class HealthCheckController extends Controller
         if ($response->getStatusCode() === 200) {
             $results = json_decode($response->getBody());
             $mostRecentCall = $results->calls[0];
+            // Maximum tolerable time since the last upload, in minutes
+            $maxHiatus = $request->input('max_allowed_age', 10);
             if (Carbon::now()->diffInMinutes(new Carbon($mostRecentCall->time)) > $maxHiatus) {
                 return response('No recent calls found', 404);
             }
