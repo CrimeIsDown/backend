@@ -82,9 +82,10 @@ class AudioArchiveController extends Controller
             Log::info($this->getLimitLinks());
         }
 
-        if (!Str::startsWith($request->header('HTTP_REFERER'), 'https://www.patreon.com/')) {
-            abort(403, 'You must open this link from Patreon.');
-        }
+        // Patreon links do not send referrer info
+        // if (!Str::startsWith($request->header('HTTP_REFERER'), 'https://www.patreon.com/')) {
+        //     abort(403, 'You must open this link from Patreon.');
+        // }
 
         $limit = $this->getLimit($request->get('token'));
 
