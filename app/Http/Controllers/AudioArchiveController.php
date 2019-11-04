@@ -130,8 +130,14 @@ class AudioArchiveController extends Controller
         $path = "$matches[2]/$matches[3]/$matches[4]/$matches[5]";
         $basename = "$matches[1]_$matches[2]$matches[3]$matches[4]_$matches[5]0000";
 
-        // See https://caniuse.com/#feat=opus
-        $extension = '.'.$request->get('format', Agent::is('iPhone') ? 'aac' : 'ogg');
+
+        $extension = '.';
+        if (strlen($request->get('format'))) {
+            $extension .= $request->get('format');
+        } else {
+            // See https://caniuse.com/#feat=opus
+            $extension .= Agent::is('iPhone') ? 'aac' : 'ogg';
+        }
         if (!in_array($extension, ['.ogg', '.aac'])) {
             return response('Unsupported audio format.', 400);
         }
