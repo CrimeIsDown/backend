@@ -50,12 +50,12 @@ class AudioArchiveController extends Controller
         try {
             $token = Crypt::decryptString($token);
         } catch (DecryptException $e) {
-            abort(403, 'Invalid token');
+            abort(403, 'Invalid token.');
         }
 
         $limit = array_search($token, $this->limits, true);
         if (!$limit) {
-            abort(400, 'Unsupported tier');
+            abort(403, 'Unknown patron tier.');
         }
         return (int) $limit;
     }
@@ -83,7 +83,7 @@ class AudioArchiveController extends Controller
         }
 
         if (!Str::startsWith($request->header('HTTP_REFERER'), 'https://www.patreon.com/')) {
-            abort(403, 'Invalid token');
+            abort(403, 'You must open this link from Patreon.');
         }
 
         $limit = $this->getLimit($request->get('token'));
