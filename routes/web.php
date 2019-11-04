@@ -15,7 +15,9 @@ Route::get('/', function () {
     return redirect('https://crimeisdown.com/');
 });
 
-Route::get('recordings/download-audio.php', 'AudioArchiveController@download')->middleware(['throttle:50,1440']);
+Route::get('recordings/patreon-login.php', 'AudioArchiveController@patreonLogin')->name('patreon-login');
+
+Route::get('recordings/download-audio.php', 'AudioArchiveController@download');
 
 Route::get('recordings/generate-video.php', 'TranscodingController@generateVideoForm');
 Route::post('recordings/generate-video.php', 'TranscodingController@generateVideo');

@@ -3,67 +3,116 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Jenssegers\Agent\Facades\Agent;
+use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\{Config, Crypt, Log, Storage};
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AudioArchiveController extends Controller
 {
+    private $limits;
+    private $limiter;
+
+    private $key;
+    private $limit;
+
+    /**
+     * AudioArchiveController constructor.
+     * @param RateLimiter $limiter
+     */
+    public function __construct(RateLimiter $limiter)
+    {
+        $this->limits = [
+            // https://www.patreon.com/posts/login-to-get-8672312
+            10 => '$1/mo patron',
+            // https://www.patreon.com/posts/login-to-get-8672332
+            20 => '$5/mo patron',
+            // https://www.patreon.com/posts/login-to-get-8672339
+            30 => '$10/mo patron',
+            // https://www.patreon.com/posts/login-to-get-8672341
+            50 => '$20/mo patron',
+            // https://www.patreon.com/posts/login-to-get-8672344
+            1000 => '$50/mo patron'
+        ];
+
+        $this->limiter = $limiter;
+    }
+
+    /**
+     * @param string $token
+     * @return int
+     */
+    private function getLimit(string $token): int
+    {
+        try {
+            $token = Crypt::decryptString($token);
+        } catch (DecryptException $e) {
+            abort(403, 'Invalid token');
+        }
+
+        $limit = array_search($token, $this->limits, true);
+        if (!$limit) {
+            abort(400, 'Unsupported tier');
+        }
+        return (int) $limit;
+    }
+
+    /**
+     * @return array
+     */
+    private function getLimitLinks()
+    {
+        $limits = [];
+        foreach ($this->limits as $limit => $string) {
+            $limits[$limit] = route('patreon-login', ['token' => Crypt::encryptString($string)]);
+        }
+        return $limits;
+    }
+
+    /**
+     * @param Request $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function patreonLogin(Request $request)
+    {
+        if (filter_var(Config::get('app.debug'), FILTER_VALIDATE_BOOLEAN)) {
+            Log::info($this->getLimitLinks());
+        }
+
+        if (!Str::startsWith($request->header('HTTP_REFERER'), 'https://www.patreon.com/')) {
+            abort(403, 'Invalid token');
+        }
+
+        $limit = $this->getLimit($request->get('token'));
+
+        $request->session()->put('limit', $limit);
+        return response()->redirectTo('https://crimeisdown.com/audio?download_limit='.$limit);
+    }
+
     /**
      * Download an audio archive
      *
      * @param Request $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
      * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
      */
     public function download(Request $request)
     {
-        // See https://caniuse.com/#feat=opus
-        $opusSupported = !($request->input('format') === 'aac' || Agent::is('iPhone'));
+        $this->key = sha1($request->route()->getDomain().'|'.$request->ip());
+        $this->limit = $request->session()->get('limit', 5);
 
-        $tiers = [
-            'https://www.patreon.com/posts/login-to-get-8672312' => [
-                'hash' => hash('sha256', '$1/mo patron'),
-                'limit' => 10,
-            ],
-            'https://www.patreon.com/posts/login-to-get-8672332' => [
-                'hash' => hash('sha256', '$5/mo patron'),
-                'limit' => 20,
-            ],
-            'https://www.patreon.com/posts/login-to-get-8672339' => [
-                'hash' => hash('sha256', '$10/mo patron'),
-                'limit' => 30,
-            ],
-            'https://www.patreon.com/posts/login-to-get-8672341' => [
-                'hash' => hash('sha256', '$20/mo patron'),
-                'limit' => 50,
-            ],
-            'https://www.patreon.com/posts/login-to-get-8672344' => [
-                'hash' => hash('sha256', '$50/mo patron'),
-                'limit' => 1000,
-            ],
-        ];
-
-        if ($request->get('patreon_auth')) {
-            $referrer = $request->header('HTTP_REFERER');
-            $response = response()->redirectTo('https://crimeisdown.com/audio?patreon_auth=1');
-            if ($referrer && isset($tiers[$referrer])) {
-                $response = $response->cookie('tier', $tiers[$referrer]['hash'], Carbon::now()->addMonth()->diffInMinutes(Carbon::now()));
-            }
-            return $response;
-        }
-
-        $limit = 5;
-
-        if ($request->cookie('tier')) {
-            foreach ($tiers as $tier) {
-                if ($request->cookie('tier') === $tier['hash']) {
-                    $limit = $tier['limit'];
-                    break;
-                }
-            }
+        if ($this->limiter->tooManyAttempts($this->key, $this->limit)) {
+            $retryAfter = $this->limiter->availableIn($this->key);
+            $date = Carbon::now('America/Chicago')->addRealSeconds($retryAfter)->toDayDateTimeString();
+            return response("<p>You have reached your daily download limit of $this->limit. You can download another file on $date (Central).</p><p>Want to increase your download limit? <a href='https://www.patreon.com/EricTendian'>Become a patron, or re-login if you are one.</a>", 429, [
+                'X-RateLimit-Limit' => $this->limit,
+                'X-RateLimit-Remaining' => $this->limiter->retriesLeft($this->key, $this->limit),
+                'Retry-After' => $retryAfter,
+                'X-RateLimit-Reset' => Carbon::now()->addRealSeconds($retryAfter)->getTimestamp()
+            ]);
         }
 
         try {
@@ -79,74 +128,157 @@ class AudioArchiveController extends Controller
 
         preg_match('/(.*?)_([0-9]{4})([0-9]{2})([0-9]{2})_([0-9]{2})([0-9]{2})([0-9]{2})/', $file_prefix, $matches);
         $path = "$matches[2]/$matches[3]/$matches[4]/$matches[5]";
-        $filename = "$matches[1]_$matches[2]$matches[3]$matches[4]_$matches[5]0000";
-        $file = null; // the file we want to return
+        $basename = "$matches[1]_$matches[2]$matches[3]$matches[4]_$matches[5]0000";
 
-        // check if it exists in the temp bucket
-        foreach (Storage::disk('recordings-temp')->files() as $tempFile) {
-            if (Str::startsWith($tempFile, $filename)) {
-                if (!(Str::endsWith($tempFile, '.ogg') && !$opusSupported)) {
-                    $file = $tempFile;
-                    break;
-                }
-            }
+        // See https://caniuse.com/#feat=opus
+        $extension = '.'.$request->get('format', Agent::is('iPhone') ? 'aac' : 'ogg');
+        if (!in_array($extension, ['.ogg', '.aac'])) {
+            return response('Unsupported audio format.', 400);
         }
 
-        if (!$file) {
-            foreach (Storage::disk('recordings')->files($path) as $audioFile) {
-                $audioFile = str_replace("$path/", '', $audioFile);
-                if (Str::startsWith($audioFile, $filename)) {
-                    $file = $this->convertFile($path, $audioFile, $filename, $opusSupported, $request->input('format'));
-                    break;
-                }
-            }
-            if (!$file) {
-                // We searched both buckets and can't find it
-                return response('Error: No recording found at that time. If this is a very recent recording, it may not have been uploaded yet (it can take up to an hour to upload). Otherwise, please try a different hour.', 404);
-            }
+        // Return file from cache
+        if (Storage::disk('recordings-temp')->exists($basename.$extension)) {
+            return $this->generateRedirect($basename.$extension, false);
         }
 
+        $sourceFilename = null;
+        // Look for the source file
+        foreach (Storage::disk('recordings')->files($path) as $sourceFile) {
+            $sourceFilename = str_replace("$path/", '', $sourceFile);
+            if (Str::startsWith($sourceFilename, $basename)) {
+                break;
+            }
+        }
+        if (!$sourceFilename) {
+            // We searched both buckets and can't find it
+            return response('Error: No recording found at that time. If this is a very recent recording, it may not have been uploaded yet (it can take up to an hour to upload). Otherwise, please try a different hour.', 404);
+        }
+
+        $filename = $this->saveToCache($path, $sourceFilename, $basename, $extension);
+        return $this->generateRedirect($filename, true);
+    }
+
+    /**
+     * @param string $filename
+     * @param bool $incrementDownloads
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    private function generateRedirect(string $filename, bool $incrementDownloads): \Illuminate\Http\RedirectResponse
+    {
         // generate URL
         $url = Storage::disk('recordings-temp')
             ->getAdapter()
             ->getBucket()
-            ->object($file)
+            ->object($filename)
             ->signedUrl(now()->addDay());
-        return response()->redirectTo($url);
+        Log::debug("Generated download URL: $url");
+
+        if ($incrementDownloads) {
+            $dayInSeconds = 86400;
+            $this->limiter->hit($this->key, $dayInSeconds);
+            Log::debug(request()->ip().' now has '.$this->limiter->retriesLeft($this->key, $this->limit).' downloads left');
+        }
+
+        return response()->redirectTo($url, 302, [
+            'X-RateLimit-Limit' => $this->limit,
+            'X-RateLimit-Remaining' => $this->limiter->retriesLeft($this->key, $this->limit),
+        ]);
     }
 
-    private function convertFile($path, $filename, $file_prefix, $opusSupported, $format)
+    /**
+     * @param string $path
+     * @param string $sourceFilename
+     * @param string $basename
+     * @param string $extension
+     * @return string
+     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
+     */
+    private function saveToCache(string $path, string $sourceFilename, string $basename, string $extension)
     {
-        $extension = '';
-        if (Str::endsWith($filename, '.aac.xz')) {
-            $extension = '.aac';
-            Storage::put("recordings/$filename", Storage::disk('recordings')->get("$path/$filename"));
-            shell_exec('/usr/bin/xz -d ' . storage_path("app/recordings/$filename"));
-            if (Storage::exists("recordings/$file_prefix$extension")) {
-                Storage::disk('recordings-temp')->put("$file_prefix$extension", Storage::get("recordings/$file_prefix$extension"));
-                Storage::delete(["recordings/$file_prefix$extension", "recordings/$filename"]);
-            } else {
-                return response('Error: Could not decompress recording. Contact eric@crimeisdown.com for assistance.',
-                    500);
-            }
-        } else if (Str::endsWith($filename, '.ogg')) {
-            if ($opusSupported || $format === 'ogg') {
-                $extension = '.ogg';
-                Storage::disk('recordings-temp')->put($filename, Storage::disk('recordings')->get("$path/$filename"));
-            } else {
-                $extension = '.aac';
-                Storage::put("recordings/$filename", Storage::disk('recordings')->get("$path/$filename"));
-                $ffmpegPath = trim(shell_exec('which ffmpeg'));
-                shell_exec($ffmpegPath . ' -y -i ' . storage_path("app/recordings/$filename") . ' -c:a aac -b:a 32k -ac 1 -ar 22050 ' . storage_path("app/recordings/$file_prefix$extension"));
-                if (Storage::exists("recordings/$file_prefix$extension")) {
-                    Storage::disk('recordings-temp')->put("$file_prefix$extension", Storage::get("recordings/$file_prefix$extension"));
-                    Storage::delete(["recordings/$filename", "recordings/$file_prefix$extension"]);
-                } else {
-                    return response('Error: Could not convert recording to '.$extension.'. Contact eric@crimeisdown.com for assistance.',
-                        500);
-                }
-            }
+        $filePath = "recordings/$sourceFilename";
+        // Download source file
+        Log::debug("Downloading file from recordings $path/$sourceFilename");
+        Storage::put($filePath, Storage::disk('recordings')->get("$path/$sourceFilename"));
+
+        if (Str::endsWith($sourceFilename, '.xz')) {
+            $filePath = $this->decompressXz($filePath);
         }
-        return $file_prefix.$extension;
+
+        $filename = $basename.$extension;
+
+        // If the file does not already end with the extension we want, convert it
+        if (!Str::endsWith($filePath, $extension)) {
+            $filePath = $this->convertFile($filePath, "recordings/$filename", $extension);
+        }
+
+        // Upload final file
+        Log::debug("Uploading $filePath to $filename in recordings-temp");
+        $result = Storage::disk('recordings-temp')->put($filename, Storage::get($filePath));
+        Storage::delete($filePath);
+        if (!$result) {
+            abort(500, 'Error: Could not upload file for download, please try again later.');
+        }
+
+        return $filename;
+    }
+
+    /**
+     * @param string $sourceFilePath
+     * @return string
+     */
+    private function decompressXz(string $sourceFilePath): string
+    {
+        $command = '/usr/bin/xz -d ' . storage_path("app/$sourceFilePath");
+        Log::debug("Running command: $command");
+        shell_exec($command);
+        $decompressedFilePath = str_replace('.xz', '', $sourceFilePath);
+        if (!Storage::exists($decompressedFilePath)) {
+            abort(500, 'Error: Could not decompress recording. Contact eric@crimeisdown.com for assistance.');
+        }
+        return $decompressedFilePath;
+    }
+
+    /**
+     * @param string $sourceFilePath
+     * @param string $convertedFilePath
+     * @param string $extension
+     * @return string
+     */
+    private function convertFile(string $sourceFilePath, string $convertedFilePath, string $extension): string
+    {
+        if (is_readable('/var/run/docker.sock')) {
+            $basePath = base_path();
+            $ffmpegPath = "docker run --rm --device /dev/dri:/dev/dri -v $basePath:/var/www/html jrottenberg/ffmpeg:4.2-vaapi";
+        } else {
+            $ffmpegPath = trim(shell_exec('which ffmpeg'));
+        }
+
+        $input = storage_path("app/$sourceFilePath");
+        $output = storage_path("app/$convertedFilePath");
+
+        $args = '-b:a 32k -ac 1';
+        switch ($extension) {
+            case '.ogg':
+            case '.caf':
+                $args .= ' -c:a libopus -ar 24000';
+                break;
+            case '.aac':
+                $args .= ' -c:a libfdk_aac -ar 22050';
+                break;
+        }
+
+        $command = "$ffmpegPath -y -i $input $args $output";
+        Log::debug("Running command: $command");
+        shell_exec($command);
+        if (
+            // File does not exist
+            !Storage::exists($convertedFilePath) ||
+            // File under 2MB
+            Storage::size($convertedFilePath) < (1024 ** 2)
+        ) {
+            abort(500, 'Error: Could not convert recording to a '.$extension.' file. Please try again, or contact eric@crimeisdown.com for assistance.');
+        }
+        Storage::delete($sourceFilePath);
+        return $convertedFilePath;
     }
 }
