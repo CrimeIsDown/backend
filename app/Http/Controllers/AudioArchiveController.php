@@ -263,15 +263,22 @@ class AudioArchiveController extends Controller
         $input = storage_path("app/$sourceFilePath");
         $output = storage_path("app/$convertedFilePath");
 
-        $args = '-b:a 32k -ac 1';
-        switch ($extension) {
-            case '.ogg':
-            case '.caf':
-                $args = ' -c:a libopus -application voip -b:a 24k -ac 1 -ar 16000';
-                break;
-            case '.aac':
-                $args .= ' -c:a libfdk_aac -ar 22050';
-                break;
+        $args = '';
+
+        // CAF can use the Opus codec without reencoding
+        $oggToCaf = $extension === '.caf' && Str::endsWith($sourceFilePath, '.ogg');
+        if (Str::endsWith($sourceFilePath, $extension) || $oggToCaf) {
+            $args = ' -c:a copy';
+        } else {
+            switch ($extension) {
+                case '.ogg':
+                case '.caf':
+                    $args = ' -c:a libopus -application voip -b:a 24k -ac 1 -ar 16000';
+                    break;
+                case '.aac':
+                    $args = ' -c:a libfdk_aac -b:a 32k -ac 1 -ar 22050';
+                    break;
+            }
         }
 
         $command = "$ffmpegPath -y -i $input $args $output";
