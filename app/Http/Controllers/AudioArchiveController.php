@@ -267,7 +267,7 @@ class AudioArchiveController extends Controller
         switch ($extension) {
             case '.ogg':
             case '.caf':
-                $args .= ' -c:a libopus -ar 24000';
+                $args = ' -c:a libopus -application voip -b:a 24k -ac 1 -ar 16000';
                 break;
             case '.aac':
                 $args .= ' -c:a libfdk_aac -ar 22050';
