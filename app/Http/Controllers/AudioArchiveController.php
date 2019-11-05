@@ -220,7 +220,20 @@ class AudioArchiveController extends Controller
 
         // Upload final file
         Log::debug("Uploading $filePath to $filename in recordings-temp");
-        $result = Storage::disk('recordings-temp')->put($filename, Storage::get($filePath));
+
+        $mimeTypes = [
+            '.aac' => 'audio/x-aac',
+            '.caf' => 'audio/x-caf',
+            '.ogg' => 'audio/ogg'
+        ];
+
+        $result = Storage::disk('recordings-temp')->put(
+            $filename,
+            Storage::get($filePath),
+            ['metadata' => [
+                'contentType' => $mimeTypes[$extension] ?? 'application/octet-stream'
+            ]]
+        );
         Storage::delete($filePath);
         if (!$result) {
             abort(500, 'Error: Could not upload file for download, please try again later.');
