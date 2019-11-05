@@ -139,7 +139,7 @@ class AudioArchiveController extends Controller
             // See https://caniuse.com/#feat=opus
             $extension .= Agent::is('iPhone') ? 'aac' : 'ogg';
         }
-        if (!in_array($extension, ['.ogg', '.aac'])) {
+        if (!in_array($extension, ['.ogg', '.aac', '.caf'])) {
             return response('Unsupported audio format.', 400);
         }
 
