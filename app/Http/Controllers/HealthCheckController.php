@@ -14,30 +14,50 @@ class HealthCheckController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function checkLivestreamHealth()
+    public function checkLivestreamHealth(Client $client)
     {
-        $client = new Client([
-            'base_uri' => 'https://www.googleapis.com/youtube/v3/',
-        ]);
-
-        $response = $client->request('GET', 'search', [
+        $response = $client->request('GET', 'https://www.youtube.com/embed/live_stream', [
             'query' => [
-                'part' => 'snippet',
-                'channelId' => Config::get('custom.youtube.channel_id'),
-                'type' => 'video',
-                'eventType' => 'live',
-                'key' => Config::get('custom.youtube.api_key')
+                'channel' => Config::get('custom.youtube.channel_id')
             ]
         ]);
 
-        if ($response->getStatusCode() === 200) {
-            $results = json_decode($response->getBody());
-            if (!count($results->items)) {
-                return response('No live streams found', 404);
-            }
+        if ($response->getStatusCode() !== 200) {
+            abort($response->getStatusCode(), 'Could not get video ID');
         }
 
-        return response($response->getReasonPhrase(), $response->getStatusCode());
+        $html = $response->getBody()->getContents();
+        $matches = [];
+        if (preg_match('/<link rel="canonical" href="https:\/\/www.youtube.com\/watch\?v=(.*)">/', $html, $matches) !== 1) {
+            abort(400, 'Could not parse video ID');
+        }
+
+        $videoId = $matches[1];
+
+        $response = $client->request('GET', 'https://www.youtube.com/heartbeat', [
+            'query' => [
+                'video_id' => $videoId,
+                'c' => 'WEB',
+                'cver' => '2.20191108.05.00',
+                'sequence_number' => 0,
+            ],
+            'headers' => [
+                'x-youtube-client-name' => '1',
+                'x-youtube-client-version' => '2.20191108.05.00',
+                'x-youtube-page-label' => 'youtube.ytfe.desktop_20191107_5_RC0',
+            ]
+        ]);
+
+        if ($response->getStatusCode() !== 200) {
+            abort($response->getStatusCode(), 'Heartbeat request failed');
+        }
+        $apiResponse = json_decode($response->getBody()->getContents());
+
+        if ($apiResponse->status !== 'ok') {
+            return response('No live streams found', 404);
+        }
+
+        return response('Livestream online', $response->getStatusCode());
     }
 
     /**
