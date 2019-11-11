@@ -131,21 +131,29 @@ class AudioArchiveController extends Controller
         $path = "$matches[2]/$matches[3]/$matches[4]/$matches[5]";
         $basename = "$matches[1]_$matches[2]$matches[3]$matches[4]_$matches[5]0000";
 
-
-        $extension = '.';
+        // Determine extension based on available files by default
+        $extension = null;
         if (strlen($request->get('format'))) {
-            $extension .= $request->get('format');
-        } else {
-            // See https://caniuse.com/#feat=opus
-            $extension .= Agent::is('iPhone') ? 'aac' : 'ogg';
-        }
-        if (!in_array($extension, ['.ogg', '.aac', '.caf'])) {
-            return response('Unsupported audio format.', 400);
+            // User wants a specific extension, use it
+            $extension = '.'.$request->get('format');
+            if (!in_array($extension, ['.ogg', '.aac', '.caf'])) {
+                return response('Unsupported audio format.', 400);
+            }
         }
 
         // Return file from cache
-        if (Storage::disk('recordings-temp')->exists($basename.$extension)) {
-            return $this->generateRedirect($basename.$extension, false);
+
+        // If we asked for a specific format, return that format
+        // If we are in auto mode:
+        //     if we have aac then return that to all OS's
+        //     if we are on iOS and have caf then return that
+        //     if we're not on iOS and we have ogg then return that
+        // See https://caniuse.com/#feat=opus for more details
+        $allowableExtensions = $extension ? [$extension] : ['.aac', Agent::is('iPhone') ? '.caf' : '.ogg'];
+        foreach ($allowableExtensions as $extensionToCheck) {
+            if (Storage::disk('recordings-temp')->exists($basename.$extensionToCheck)) {
+                return $this->generateRedirect($basename.$extensionToCheck, false);
+            }
         }
 
         $sourceFilename = null;
@@ -159,6 +167,16 @@ class AudioArchiveController extends Controller
         if (!$sourceFilename) {
             // We searched both buckets and can't find it
             return response('Error: No recording found at that time. If this is a very recent recording, it may not have been uploaded yet (it can take up to an hour to upload). Otherwise, please try a different hour.', 404);
+        }
+
+        // Pick most likely to be compatible extension if none is selected yet
+        if (!$extension) {
+            if (Str::endsWith($sourceFilename, '.ogg')) {
+                $extension = Agent::is('iPhone') ? '.caf' : '.ogg';
+            } else {
+                // Either this is a .aac(.xz) file or it's some file type we don't recognize, use .aac for best cross-platform support
+                $extension = '.aac';
+            }
         }
 
         $filename = $this->saveToCache($path, $sourceFilename, $basename, $extension);
