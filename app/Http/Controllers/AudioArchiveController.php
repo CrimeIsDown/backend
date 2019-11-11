@@ -149,7 +149,10 @@ class AudioArchiveController extends Controller
         //     if we are on iOS and have caf then return that
         //     if we're not on iOS and we have ogg then return that
         // See https://caniuse.com/#feat=opus for more details
-        $allowableExtensions = $extension ? [$extension] : ['.aac', Agent::is('iPhone') ? '.caf' : '.ogg'];
+        $supportsCAF = Agent::is('OS X') || Agent::is('iPhone');
+        $opusExtension = $supportsCAF ? '.caf' : '.ogg';
+
+        $allowableExtensions = $extension ? [$extension] : ['.aac', $opusExtension];
         foreach ($allowableExtensions as $extensionToCheck) {
             if (Storage::disk('recordings-temp')->exists($basename.$extensionToCheck)) {
                 return $this->generateRedirect($basename.$extensionToCheck, false);
@@ -172,7 +175,7 @@ class AudioArchiveController extends Controller
         // Pick most likely to be compatible extension if none is selected yet
         if (!$extension) {
             if (Str::endsWith($sourceFilename, '.ogg')) {
-                $extension = Agent::is('iPhone') ? '.caf' : '.ogg';
+                $extension = $opusExtension;
             } else {
                 // Either this is a .aac(.xz) file or it's some file type we don't recognize, use .aac for best cross-platform support
                 $extension = '.aac';
