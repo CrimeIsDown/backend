@@ -25,12 +25,6 @@
         "nunomaduro/collision": "^3.0",
         "phpunit/phpunit": "^8.0"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/Mombuyish/laravel-google-cloud-storage.git"
-        }
-    ],
     "autoload": {
         "classmap": [
             "database/seeds",
