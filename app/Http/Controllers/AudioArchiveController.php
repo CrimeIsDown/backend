@@ -118,7 +118,7 @@ class AudioArchiveController extends Controller
 
         try {
             $this->validate($request, [
-                'feed'     => 'required|in:zone1,zone2,zone3,zone4,zone5,zone6,zone7,zone8,zone9,zone10,zone11,zone12,zone13,citywide1,citywide2,citywide4,citywide5,citywide6',
+                'feed'     => 'required|in:zone1,zone2,zone3,zone4,zone5,zone6,zone7,zone8,zone9,zone10,zone11,zone12,zone13,citywide1,citywide2,citywide5,citywide6,fire_main,fire_englewood,ems_main,ems_englewood',
                 'datetime' => 'required|date'
             ]);
         } catch (ValidationException $e) {
