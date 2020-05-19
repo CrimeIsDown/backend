@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\{ConnectException, ServerException};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 
@@ -71,9 +72,14 @@ class HealthCheckController extends Controller
     {
         $client = new Client([
             'base_uri' => 'https://api.openmhz.com/',
+            'timeout' => 5,
         ]);
 
-        $response = $client->request('GET', $systemName.'/calls');
+        try {
+            $response = $client->request('GET', $systemName.'/calls');
+        } catch (ConnectException | ServerException $e) {
+            return response('Got server error, assuming OK', 200);
+        }
 
         if ($response->getStatusCode() === 200) {
             $results = json_decode($response->getBody());
