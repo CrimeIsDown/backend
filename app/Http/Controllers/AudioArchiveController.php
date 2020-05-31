@@ -162,8 +162,9 @@ class AudioArchiveController extends Controller
         $sourceFilename = null;
         // Look for the source file
         foreach (Storage::disk('recordings')->files($path) as $sourceFile) {
-            $sourceFilename = str_replace("$path/", '', $sourceFile);
-            if (Str::startsWith($sourceFilename, $basename)) {
+            $testFilename = str_replace("$path/", '', $sourceFile);
+            if (Str::startsWith($testFilename, $basename)) {
+                $sourceFilename = $testFilename;
                 break;
             }
         }
