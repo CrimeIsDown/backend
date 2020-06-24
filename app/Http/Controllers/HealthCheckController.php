@@ -35,30 +35,31 @@ class HealthCheckController extends Controller
 
         $videoId = $matches[1];
 
-        $response = $client->request('GET', 'https://www.youtube.com/heartbeat', [
-            'query' => [
-                'video_id' => $videoId,
-                'c' => 'WEB',
-                'cver' => '2.20191108.05.00',
-                'sequence_number' => 0,
-            ],
+        $response = $client->request('GET', 'https://www.googleapis.com/youtube/v3/videos', [
+            'http_errors' => false,
             'headers' => [
-                'x-youtube-client-name' => '1',
-                'x-youtube-client-version' => '2.20191108.05.00',
-                'x-youtube-page-label' => 'youtube.ytfe.desktop_20191107_5_RC0',
+                'referer' => 'https://explorer.apis.google.com',
+                'x-referer' => 'https://explorer.apis.google.com',
+            ],
+            'query' => [
+                'part' => 'snippet',
+                'id' => $videoId,
+                'key' => Config::get('custom.youtube.api_key')
             ]
         ]);
 
         if ($response->getStatusCode() !== 200) {
             abort($response->getStatusCode(), 'Heartbeat request failed');
         }
-        $apiResponse = json_decode($response->getBody()->getContents());
 
-        if ($apiResponse->status !== 'ok') {
+        $apiResponse = json_decode($response->getBody()->getContents());
+        try {
+            $status = $apiResponse->items[0]->snippet->liveBroadcastContent;
+            if ($status !== 'live') throw new \Exception();
+            return response('Livestream online', $response->getStatusCode());
+        } catch (\Exception $e) {
             return response('No live streams found', 404);
         }
-
-        return response('Livestream online', $response->getStatusCode());
     }
 
     /**
