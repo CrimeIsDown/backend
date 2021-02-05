@@ -49,6 +49,9 @@ class HealthCheckController extends Controller
         ]);
 
         if ($response->getStatusCode() !== 200) {
+            if ($response->getStatusCode() === 403) {
+                return response('Skipped check, hit API quota', 200);
+            }
             abort($response->getStatusCode(), 'Heartbeat request failed');
         }
 
