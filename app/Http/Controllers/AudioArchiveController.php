@@ -311,7 +311,7 @@ class AudioArchiveController extends Controller
                     $args = ' -c:a libopus -application voip -b:a 24k -ac 1 -ar 16000';
                     break;
                 case '.aac':
-                    $args = ' -c:a libfdk_aac -b:a 32k -ac 1 -ar 22050';
+                    $args = ' -c:a aac -b:a 32k -ac 1 -ar 22050';
                     break;
             }
         }
